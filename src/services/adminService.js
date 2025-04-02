@@ -32,6 +32,7 @@ export const loginAdmin = async (email, password) => {
   try {
     const user = await User.findOne({
       where: { email },
+      attributes: { exclude: ["password"] },
       include: [{ model: Admin, as: "admin" }],
     });
     if (!user) {
@@ -48,7 +49,7 @@ export const loginAdmin = async (email, password) => {
 
     const token = user.createJWT();
 
-    return { message: "Success", token, user };
+    return { message: "Success", token };
   } catch (error) {
     throw new Error(error.message);
   }
