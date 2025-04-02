@@ -40,16 +40,16 @@ export const updateDoctorSchedule = async (user_id, updateData) => {
       "saturday",
       "sunday",
     ];
-    for (const key of Object.keys(updatedDays)) {
+    for (const key of Object.keys(updateData)) {
       if (!allowedDays.includes(key)) {
         throw new BadRequestError(`Invalid day: ${key}`);
       }
     }
 
-    Object.assign(schedule, updatedDays);
+    Object.assign(schedule, updateData);
     await schedule.save();
 
-    return { message: "Schedule updated successfully", schedule };
+    return { message: "Success", schedule };
   } catch (error) {
     throw new Error(error.message);
   }
