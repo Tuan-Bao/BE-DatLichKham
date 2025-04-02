@@ -39,7 +39,11 @@ export const updateSpecialization = async (req, res, next) => {
       );
     }
 
-    let updateData = { name };
+    let updateData = {};
+
+    if (name) {
+      updateData.name = name;
+    }
 
     if (req.file) {
       const imageBuffer = req.file.buffer.toString("base64");
