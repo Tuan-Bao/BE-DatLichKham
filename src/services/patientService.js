@@ -1,8 +1,10 @@
 import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
+import cloudinary from "../config/cloudinary.js";
 import { sendVerifyLink } from "../utils/gmail.js";
 import { configDotenv } from "dotenv";
+import { where } from "sequelize";
 
 configDotenv({ path: "../.env" });
 
@@ -91,16 +93,18 @@ export const loginPatient = async (email, password) => {
 
     const token = user.createJWT();
 
-    return { message: "Success", token, user };
+    return { message: "Success", token };
   } catch (error) {
     throw new Error(error.message);
   }
 };
 
 export const changePassword = async (user_id, oldPassword, newPassword) => {
+  const transaction = await Sequelize.transaction();
   try {
     const user = await User.findByPk(user_id, {
       include: [{ model: Patient, as: "patient" }],
+      transaction,
     });
     if (!user) {
       throw new NotFoundError("User not found");
@@ -113,9 +117,12 @@ export const changePassword = async (user_id, oldPassword, newPassword) => {
       throw new BadRequestError("Incorrect password");
     }
     user.password = newPassword;
-    await user.save();
+    await user.save({ transaction });
+
+    await transaction.commit();
     return { message: "Success" };
   } catch (error) {
+    await transaction.rollback();
     throw new Error(error.message);
   }
 };
@@ -167,6 +174,50 @@ export const getPatientProfile = async (user_id) => {
   }
 };
 
+export const getPatientAppointmentsAndMedicalRecords = async (user_id) => {
+  try {
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
+      include: [{ model: Patient, as: "patient" }],
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { patient } = user;
+    if (!patient) {
+      throw new NotFoundError("Patient not found");
+    }
+
+    const appointments = await Appointment.findAll({
+      where: {
+        patient_id: patient.patient_id,
+        status: "completed",
+      },
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            { model: User, as: "user", attributes: { exclude: ["password"] } },
+            { model: Specialization, as: "specialization" },
+          ],
+        },
+        {
+          model: MedicalRecord,
+          as: "medical_record",
+        },
+      ],
+      order: [["appointment_date", "DESC"]],
+    });
+
+    return { message: "Success", user, appointments };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 export const updatePatientProfile = async (user_id, updateData) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -175,6 +226,52 @@ export const updatePatientProfile = async (user_id, updateData) => {
       include: [{ model: Patient, as: "patient" }],
       transaction,
     });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { patient } = user;
+    if (!patient) {
+      throw new NotFoundError("Patient not found");
+    }
+
+    const userFields = ["username", "email"];
+    userFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        user[field] = updateData[field];
+      }
+    });
+
+    if (updateData.avatar) {
+      const uploadResult = await cloudinary.uploader.upload(updateData.avatar, {
+        folder: "avatars",
+        use_filename: true,
+        unique_filename: false,
+      });
+      user.avatar = uploadResult.secure_url;
+    }
+
+    const patientFields = [
+      "date_of_birth",
+      "gender",
+      "address",
+      "phone_number",
+      "insurance_number",
+      "id_number",
+    ];
+
+    patientFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        patient[field] = updateData[field];
+      }
+    });
+
+    await user.save({ transaction });
+    await patient.save({ transaction });
+
+    await transaction.commit();
+    return { message: "Success" };
   } catch (error) {
     await transaction.rollback();
     throw new Error(error.message);
@@ -198,7 +295,7 @@ export const getPatientAppointments = async (user_id) => {
     }
 
     const appointments = await Appointment.findAll({
-      where: { patient_id: patient.id },
+      where: { patient_id: patient.patient_id },
       include: [
         {
           model: Doctor,
@@ -208,8 +305,15 @@ export const getPatientAppointments = async (user_id) => {
             { model: Specialization, as: "specialization" },
           ],
         },
+        {
+          model: Patient,
+          as: "patient",
+          include: [
+            { model: User, as: "user", attributes: { exclude: ["password"] } },
+          ],
+        },
       ],
-      order: [["appointment_datetime", "DESC"]],
+      order: [["appointment_datetime", "DESC"]], // Lịch hẹn được sắp xếp theo thời gian mới nhất đến cũ nhất
     });
 
     return {
@@ -224,23 +328,25 @@ export const getPatientAppointments = async (user_id) => {
 export const getPatientPayments = async (user_id) => {
   try {
     const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
       include: {
         model: Patient,
         as: "patient",
       },
     });
 
-    if (!user || !user.patient) {
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { patient } = user;
+    if (!patient) {
       throw new NotFoundError("Patient not found");
     }
 
     const appointments = await Appointment.findAll({
-      where: { patient_id: user.patient.patient_id },
+      where: { patient_id: patient.patient_id, status: "completed" },
       include: [
-        {
-          model: Payment,
-          as: "payment",
-        },
         {
           model: Doctor,
           as: "doctor",
@@ -248,6 +354,10 @@ export const getPatientPayments = async (user_id) => {
             { model: User, as: "user", attributes: { exclude: ["password"] } },
             { model: Specialization, as: "specialization" },
           ],
+        },
+        {
+          model: Payment,
+          as: "payment",
         },
       ],
       order: [["appointment_datetime", "DESC"]],
