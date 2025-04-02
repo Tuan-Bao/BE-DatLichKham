@@ -1,24 +1,29 @@
 import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
-import { or } from "sequelize";
+import cloudinary from "../config/cloudinary.js";
 
 const db = await initDB();
 const Doctor = db.Doctor;
 const User = db.User;
 const Specialization = db.Specialization;
+const Schedule = db.Schedule;
 const Appointment = db.Appointment;
 
 export const loginDoctor = async (email, password) => {
   try {
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({
+      where: { email },
+      include: [{ model: Doctor, as: "doctor" }],
+    });
 
     if (!user) {
       throw new NotFoundError("Doctor not found");
     }
 
-    if (user.role !== "doctor") {
-      throw new BadRequestError("This account is not a doctor");
+    const { doctor } = user;
+    if (!doctor) {
+      throw new NotFoundError("Doctor not found");
     }
 
     const isMatch = await user.comparePassword(password);
@@ -66,6 +71,7 @@ export const getAllDoctors = async () => {
   }
 };
 
+// user + doctor + specialization + schedule
 export const getDoctorProfile = async (user_id) => {
   try {
     const user = await User.findByPk(user_id, {
@@ -74,6 +80,10 @@ export const getDoctorProfile = async (user_id) => {
         {
           model: Doctor,
           as: "doctor",
+          include: [
+            { model: Specialization, as: "specialization" },
+            { model: Schedule, as: "schedule" },
+          ],
         },
       ],
     });
@@ -124,6 +134,14 @@ export const getDoctorAppointments = async (user_id) => {
             { model: User, as: "user", attributes: { exclude: ["password"] } },
           ],
         },
+        // {
+        //   model: Doctor,
+        //   as: "doctor",
+        //   include: [
+        //     { model: User, as: "user", attributes: { exclude: ["password"] } },
+        //     { model: Specialization, as: "specialization" },
+        //   ],
+        // },
       ],
       order: [["appointment_datetime", "DESC"]],
     });
@@ -137,26 +155,152 @@ export const getDoctorAppointments = async (user_id) => {
   }
 };
 
-export const addDoctor = async () => {}; // add user + doctor + schedule
+export const addDoctor = async (doctorData) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const {
+      username,
+      email,
+      password,
+      avatar,
+      specialization_id,
+      degree,
+      experience_years,
+      description,
+    } = doctorData;
 
-export const updateDoctorProfile = async (user_id, updateData) => {};
+    const existingUser = await User.findOne({ where: { email }, transaction });
+    if (existingUser) {
+      throw new BadRequestError("Email is already registered");
+    }
+
+    let avatarUrl = null;
+    if (avatar) {
+      const uploadResult = await cloudinary.uploader.upload(avatar, {
+        folder: "avatars",
+        use_filename: true,
+        unique_filename: false,
+      });
+
+      avatarUrl = uploadResult.secure_url;
+    }
+
+    const newUser = await User.create(
+      {
+        username,
+        email,
+        password,
+        avatar: avatarUrl,
+        role: "doctor",
+      },
+      { transaction }
+    );
+
+    const user_id = newUser.user_id;
+
+    const newDoctor = await Doctor.create(
+      {
+        user_id,
+        specialization_id,
+        degree,
+        experience_years,
+        description,
+      },
+      { transaction }
+    );
+
+    const doctor_id = newDoctor.doctor_id;
+
+    await Schedule.create(
+      {
+        doctor_id,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+    return { message: "Success", doctor: newDoctor };
+  } catch (error) {
+    await transaction.rollback();
+    throw new Error(error.message);
+  }
+}; // add user + doctor + schedule
+
+export const updateDoctorProfile = async (user_id, updateData) => {
+  const transaction = await db.sequelize.transaction();
+  try {
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
+      include: [{ model: Doctor, as: "doctor" }],
+      transaction,
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { doctor } = user;
+    if (!doctor) {
+      throw new NotFoundError("Doctor not found");
+    }
+
+    const userFields = ["username", "email"];
+    userFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        user[field] = updateData[field];
+      }
+    });
+
+    if (updateData.avatar) {
+      const uploadResult = await cloudinary.uploader.upload(updateData.avatar, {
+        folder: "avatars",
+        use_filename: true,
+        unique_filename: false,
+      });
+      user.avatar = uploadResult.secure_url;
+    }
+
+    const doctorFields = [
+      "degree",
+      "experience_years",
+      "description",
+      "specialization_id",
+    ];
+    doctorFields.forEach((field) => {
+      if (updateData[field] !== undefined) {
+        doctor[field] = updateData[field];
+      }
+    });
+
+    await user.save({ transaction });
+    await doctor.save({ transaction });
+
+    await transaction.commit();
+    return { message: "Success" };
+  } catch (error) {
+    await transaction.rollback();
+    throw new Error(error.message);
+  }
+};
 
 export const deleteDoctor = async (user_id) => {
+  const transaction = await db.sequelize.transaction();
   try {
     const user = await User.findByPk(user_id, {
       include: { model: Doctor, as: "doctor" },
+      transaction,
     });
 
     if (!user || !user.doctor) {
       throw new NotFoundError("Doctor not found");
     }
 
-    await user.destroy(); // CASCADE sẽ xóa doctor & schedule liên quan
+    await user.destroy({ transaction }); // CASCADE sẽ xóa doctor & schedule liên quan
 
-    return {
-      message: "Doctor deleted successfully",
-    };
+    await transaction.commit();
+    return { message: "Success" };
   } catch (error) {
+    await transaction.rollback();
     throw new Error(error.message);
   }
 };
