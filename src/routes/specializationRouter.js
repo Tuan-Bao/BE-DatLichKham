@@ -14,7 +14,7 @@ specializationRouter.post(
 );
 
 specializationRouter.patch(
-  "/update/:id",
+  "/update/:specialization_id",
   upload.single("image"),
   specializationController.updateSpecialization
 );

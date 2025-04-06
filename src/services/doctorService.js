@@ -31,10 +31,12 @@ export const loginDoctor = async (email, password) => {
       throw new BadRequestError("Invalid password");
     }
 
+    const role = user.role;
     const token = user.createJWT();
 
     return {
       message: "Success",
+      role,
       token,
     };
   } catch (error) {
@@ -148,6 +150,7 @@ export const getDoctorAppointments = async (user_id) => {
 
     return {
       message: "Success",
+      user,
       appointments,
     };
   } catch (error) {
@@ -287,7 +290,7 @@ export const deleteDoctor = async (user_id) => {
   const transaction = await db.sequelize.transaction();
   try {
     const user = await User.findByPk(user_id, {
-      include: { model: Doctor, as: "doctor" },
+      include: [{ model: Doctor, as: "doctor" }],
       transaction,
     });
 

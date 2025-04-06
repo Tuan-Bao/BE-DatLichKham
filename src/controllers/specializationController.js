@@ -30,7 +30,7 @@ export const createSpecialization = async (req, res, next) => {
 
 export const updateSpecialization = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { specialization_id } = req.params;
     const { name } = req.body;
 
     if (!name && !req.file) {
@@ -51,7 +51,7 @@ export const updateSpecialization = async (req, res, next) => {
     }
 
     const result = await specializationService.updateSpecialization(
-      id,
+      specialization_id,
       updateData
     );
 

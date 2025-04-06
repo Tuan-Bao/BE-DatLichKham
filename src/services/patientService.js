@@ -4,7 +4,6 @@ import NotFoundError from "../errors/not_found.js";
 import cloudinary from "../config/cloudinary.js";
 import { sendVerifyLink } from "../utils/gmail.js";
 import { configDotenv } from "dotenv";
-import { where } from "sequelize";
 
 configDotenv({ path: "../.env" });
 
@@ -12,6 +11,8 @@ const db = await initDB();
 const Patient = db.Patient;
 const User = db.User;
 const Appointment = db.Appointment;
+const MedicalRecord = db.MedicalRecord;
+const Payment = db.Payment;
 
 export const registerPatient = async (username, password, email) => {
   const transaction = await Sequelize.transaction();
@@ -34,7 +35,7 @@ export const registerPatient = async (username, password, email) => {
     const link = `${process.env.URL}/patient/verify?email=${email}&otp_code=${otp_code}`;
     await sendVerifyLink(email, otp_code, link);
     await transaction.commit();
-    return { message: "Success", patient: newPatient };
+    return { message: "Success" };
   } catch (error) {
     await transaction.rollback();
     throw new Error(error.message);
@@ -91,9 +92,14 @@ export const loginPatient = async (email, password) => {
       throw new BadRequestError("Invalid credentials");
     }
 
+    const role = user.role;
     const token = user.createJWT();
 
-    return { message: "Success", token };
+    return {
+      message: "Success",
+      role,
+      token,
+    };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -174,49 +180,55 @@ export const getPatientProfile = async (user_id) => {
   }
 };
 
-export const getPatientAppointmentsAndMedicalRecords = async (user_id) => {
-  try {
-    const user = await User.findByPk(user_id, {
-      attributes: { exclude: ["password"] },
-      include: [{ model: Patient, as: "patient" }],
-    });
+// export const getPatientAppointmentsAndMedicalRecordsAndPrescriptions = async (
+//   user_id
+// ) => {
+//   try {
+//     const user = await User.findByPk(user_id, {
+//       attributes: { exclude: ["password"] },
+//       include: [{ model: Patient, as: "patient" }],
+//     });
 
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
+//     if (!user) {
+//       throw new NotFoundError("User not found");
+//     }
 
-    const { patient } = user;
-    if (!patient) {
-      throw new NotFoundError("Patient not found");
-    }
+//     const { patient } = user;
+//     if (!patient) {
+//       throw new NotFoundError("Patient not found");
+//     }
 
-    const appointments = await Appointment.findAll({
-      where: {
-        patient_id: patient.patient_id,
-        status: "completed",
-      },
-      include: [
-        {
-          model: Doctor,
-          as: "doctor",
-          include: [
-            { model: User, as: "user", attributes: { exclude: ["password"] } },
-            { model: Specialization, as: "specialization" },
-          ],
-        },
-        {
-          model: MedicalRecord,
-          as: "medical_record",
-        },
-      ],
-      order: [["appointment_date", "DESC"]],
-    });
+//     const appointments = await Appointment.findAll({
+//       where: {
+//         patient_id: patient.patient_id,
+//         status: "completed",
+//       },
+//       include: [
+//         {
+//           model: Doctor,
+//           as: "doctor",
+//           include: [
+//             { model: User, as: "user", attributes: { exclude: ["password"] } },
+//             { model: Specialization, as: "specialization" },
+//           ],
+//         },
+//         {
+//           model: MedicalRecord,
+//           as: "medical_record",
+//         },
+//         {
+//           model: Prescription,
+//           as: "prescription",
+//         },
+//       ],
+//       order: [["appointment_date", "DESC"]],
+//     });
 
-    return { message: "Success", user, appointments };
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
+//     return { message: "Success", user, appointments };
+//   } catch (error) {
+//     throw new Error(error.message);
+//   }
+// };
 
 export const updatePatientProfile = async (user_id, updateData) => {
   const transaction = await db.sequelize.transaction();
@@ -318,6 +330,7 @@ export const getPatientAppointments = async (user_id) => {
 
     return {
       message: "Success",
+      user,
       appointments,
     };
   } catch (error) {
@@ -329,10 +342,12 @@ export const getPatientPayments = async (user_id) => {
   try {
     const user = await User.findByPk(user_id, {
       attributes: { exclude: ["password"] },
-      include: {
-        model: Patient,
-        as: "patient",
-      },
+      include: [
+        {
+          model: Patient,
+          as: "patient",
+        },
+      ],
     });
 
     if (!user) {

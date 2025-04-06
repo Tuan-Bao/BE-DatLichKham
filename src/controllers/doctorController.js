@@ -3,6 +3,48 @@ import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import { StatusCodes } from "http-status-codes";
 
+export const loginDoctor = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      throw new BadRequestError("Missing required fields");
+    }
+    const result = await doctorService.loginDoctor(email, password);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllDoctors = async (req, res, next) => {
+  try {
+    const result = await doctorService.getAllDoctors();
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDoctorProfile = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const result = await doctorService.getDoctorProfile(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDoctorAppointments = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const result = await doctorService.getDoctorAppointments(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const addDoctor = async (req, res, next) => {
   try {
     const {
@@ -68,6 +110,16 @@ export const updateDoctorProfile = async (req, res, next) => {
 
     const result = await doctorService.updateDoctorProfile(user_id, updateData);
     res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteDoctor = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await doctorService.deleteDoctor(user_id);
+    return res.status(StatusCodes.OK).json(result);
   } catch (error) {
     next(error);
   }

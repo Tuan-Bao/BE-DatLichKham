@@ -32,7 +32,7 @@ export const getAllSpecializations = async () => {
 //   }
 // };
 
-export const addSpecialization = async (name, imageFile) => {
+export const createSpecialization = async (name, imageFile) => {
   const transaction = await db.sequelize.transaction();
   try {
     const existingSpecialization = await Specialization.findOne({
@@ -74,6 +74,8 @@ export const updateSpecialization = async (specialization_id, updateData) => {
       throw new NotFoundError("Specialization not found");
     }
 
+    const data = {};
+
     if (updateData.name && updateData.name !== specialization.name) {
       const existingSpecialization = await Specialization.findOne({
         where: { name: updateData.name },
@@ -83,9 +85,9 @@ export const updateSpecialization = async (specialization_id, updateData) => {
       if (existingSpecialization) {
         throw new BadRequestError("Specialization name already exists.");
       }
-    }
 
-    let imageUrl = specialization.image;
+      data.name = updateData.name;
+    }
 
     if (updateData.image) {
       const uploadResult = await cloudinary.uploader.upload(updateData.image, {
@@ -94,16 +96,12 @@ export const updateSpecialization = async (specialization_id, updateData) => {
         unique_filename: false,
       });
 
-      imageUrl = uploadResult.secure_url;
+      let imageUrl = uploadResult.secure_url;
+
+      data.image = imageUrl;
     }
 
-    await specialization.update(
-      {
-        name: updateData.name || specialization.name,
-        image: imageUrl,
-      },
-      { transaction }
-    );
+    await specialization.update({ ...data }, { transaction });
 
     await transaction.commit();
     return { message: "Success", specialization };

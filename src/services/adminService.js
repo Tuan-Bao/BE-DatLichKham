@@ -47,9 +47,14 @@ export const loginAdmin = async (email, password) => {
       throw new BadRequestError("Invalid credentials");
     }
 
+    const role = user.role;
     const token = user.createJWT();
 
-    return { message: "Success", token };
+    return {
+      message: "Success",
+      role,
+      token,
+    };
   } catch (error) {
     throw new Error(error.message);
   }

@@ -2,6 +2,98 @@ import * as patientService from "../services/patientService.js";
 import BadRequestError from "../errors/bad_request.js";
 import { StatusCodes } from "http-status-codes";
 
+export const registerPatient = async (req, res, next) => {
+  try {
+    const { username, password, email } = req.body;
+    if (!username || !password || !email) {
+      throw new BadRequestError("Missing required fields");
+    }
+
+    const result = await patientService.registerPatient(
+      username,
+      password,
+      email
+    );
+    return res.status(StatusCodes.CREATED).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { email, otp_code } = req.query;
+    const result = await patientService.verifyEmail(email, otp_code);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const loginPatient = async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      throw new BadRequestError("Missing required fields");
+    }
+    const result = await patientService.loginPatient(email, password);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePassword = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const { old_password, new_password } = req.body;
+    const result = await patientService.changePassword(
+      user_id,
+      old_password,
+      new_password
+    );
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAllPatients = async (req, res, next) => {
+  try {
+    const result = await patientService.getAllPatients();
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPatientProfile = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const result = await patientService.getPatientProfile(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// export const getPatientAppointmentsAndMedicalRecordsAndPrescriptions = async (
+//   req,
+//   res,
+//   next
+// ) => {
+//   try {
+//     const { user_id } = req.user;
+//     const result =
+//       await patientService.getPatientAppointmentsAndMedicalRecordsAndPrescriptions(
+//         user_id
+//       );
+//     return res.status(StatusCodes.OK).json(result);
+//   } catch (error) {
+//     next(error);
+//   }
+// };
+
 export const updatePatientProfile = async (req, res, next) => {
   try {
     const { user_id } = req.user;
@@ -23,6 +115,26 @@ export const updatePatientProfile = async (req, res, next) => {
     );
 
     res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPatientAppointments = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const result = await patientService.getPatientAppointments(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPatientPayments = async (req, res, next) => {
+  try {
+    const { user_id } = req.user;
+    const result = await patientService.getPatientPayments(user_id);
+    return res.status(StatusCodes.OK).json(result);
   } catch (error) {
     next(error);
   }
