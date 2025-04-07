@@ -180,55 +180,45 @@ export const getPatientProfile = async (user_id) => {
   }
 };
 
-// export const getPatientAppointmentsAndMedicalRecordsAndPrescriptions = async (
-//   user_id
-// ) => {
-//   try {
-//     const user = await User.findByPk(user_id, {
-//       attributes: { exclude: ["password"] },
-//       include: [{ model: Patient, as: "patient" }],
-//     });
+export const getPatientAppointmentsByDoctor = async (user_id) => {
+  try {
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
+      include: [{ model: Patient, as: "patient" }],
+    });
 
-//     if (!user) {
-//       throw new NotFoundError("User not found");
-//     }
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
 
-//     const { patient } = user;
-//     if (!patient) {
-//       throw new NotFoundError("Patient not found");
-//     }
+    const { patient } = user;
+    if (!patient) {
+      throw new NotFoundError("Patient not found");
+    }
 
-//     const appointments = await Appointment.findAll({
-//       where: {
-//         patient_id: patient.patient_id,
-//         status: "completed",
-//       },
-//       include: [
-//         {
-//           model: Doctor,
-//           as: "doctor",
-//           include: [
-//             { model: User, as: "user", attributes: { exclude: ["password"] } },
-//             { model: Specialization, as: "specialization" },
-//           ],
-//         },
-//         {
-//           model: MedicalRecord,
-//           as: "medical_record",
-//         },
-//         {
-//           model: Prescription,
-//           as: "prescription",
-//         },
-//       ],
-//       order: [["appointment_date", "DESC"]],
-//     });
+    const appointments = await Appointment.findAll({
+      where: {
+        patient_id: patient.patient_id,
+        status: "completed",
+      },
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            { model: User, as: "user", attributes: { exclude: ["password"] } },
+            { model: Specialization, as: "specialization" },
+          ],
+        },
+      ],
+      order: [["appointment_date", "DESC"]],
+    });
 
-//     return { message: "Success", user, appointments };
-//   } catch (error) {
-//     throw new Error(error.message);
-//   }
-// };
+    return { message: "Success", user, appointments };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
 
 export const updatePatientProfile = async (user_id, updateData) => {
   const transaction = await db.sequelize.transaction();

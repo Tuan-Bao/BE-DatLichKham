@@ -1,5 +1,15 @@
 import * as specializationService from "../services/specializationService.js";
 import { StatusCodes } from "http-status-codes";
+import BadRequestError from "../errors/bad_request.js";
+
+export const getAllSpecializations = async (req, res, next) => {
+  try {
+    const result = await specializationService.getAllSpecializations();
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const createSpecialization = async (req, res, next) => {
   try {
@@ -55,6 +65,18 @@ export const updateSpecialization = async (req, res, next) => {
       updateData
     );
 
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteSpecialization = async (req, res, next) => {
+  try {
+    const { specialization_id } = req.params;
+    const result = await specializationService.deleteSpecialization(
+      specialization_id
+    );
     return res.status(StatusCodes.OK).json(result);
   } catch (error) {
     next(error);

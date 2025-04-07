@@ -77,22 +77,15 @@ export const getPatientProfile = async (req, res, next) => {
   }
 };
 
-// export const getPatientAppointmentsAndMedicalRecordsAndPrescriptions = async (
-//   req,
-//   res,
-//   next
-// ) => {
-//   try {
-//     const { user_id } = req.user;
-//     const result =
-//       await patientService.getPatientAppointmentsAndMedicalRecordsAndPrescriptions(
-//         user_id
-//       );
-//     return res.status(StatusCodes.OK).json(result);
-//   } catch (error) {
-//     next(error);
-//   }
-// };
+export const getPatientAppointmentsByDoctor = async (req, res, next) => {
+  try {
+    const { user_id } = req.body;
+    const result = await patientService.getPatientAppointmentsByDoctor(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const updatePatientProfile = async (req, res, next) => {
   try {

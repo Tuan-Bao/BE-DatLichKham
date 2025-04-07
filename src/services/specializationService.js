@@ -57,7 +57,7 @@ export const createSpecialization = async (name, imageFile) => {
     );
 
     await transaction.commit();
-    return { message: "Success", specialization: newSpecialization };
+    return { message: "Success" };
   } catch (error) {
     await transaction.rollback();
     throw new Error(error.message);
@@ -104,7 +104,7 @@ export const updateSpecialization = async (specialization_id, updateData) => {
     await specialization.update({ ...data }, { transaction });
 
     await transaction.commit();
-    return { message: "Success", specialization };
+    return { message: "Success" };
   } catch (error) {
     await transaction.rollback();
     throw new Error(error.message);

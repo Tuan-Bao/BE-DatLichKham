@@ -1,5 +1,5 @@
 import express from "express";
-import * as patientController from "../controllers/patientController";
+import * as patientController from "../controllers/patientController.js";
 import multer from "multer";
 import authentication from "../middlewares/authentication.js";
 import authorized from "../middlewares/authorization.js";
@@ -36,13 +36,6 @@ patientRouter.get(
   patientController.getPatientProfile
 );
 
-// patientRouter.get(
-//   "/appointments_medical_records_prescriptions",
-//   authentication,
-//   authorized(["doctor"]),
-//   patientController.getPatientAppointmentsAndMedicalRecordsAndPrescriptions
-// );
-
 patientRouter.patch(
   "/update",
   authentication,
@@ -54,8 +47,15 @@ patientRouter.patch(
 patientRouter.get(
   "/appointments",
   authentication,
-  authorized(["patient", "doctor", "admin"]),
+  authorized(["patient", "admin"]),
   patientController.getPatientAppointments
+);
+
+patientRouter.get(
+  "/appointments_complete",
+  authentication,
+  authorized(["doctor"]),
+  patientController.getPatientAppointmentsByDoctor
 );
 
 export default patientRouter;
