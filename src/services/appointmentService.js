@@ -1,9 +1,9 @@
-import initDB from "../models/index.js";
+import db from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import { Op } from "sequelize";
 
-const db = await initDB();
+// const db = await initDB();
 const Appointment = db.Appointment;
 const User = db.User;
 const Doctor = db.Doctor;

@@ -1,6 +1,6 @@
 "use strict";
 // const { Model } = require("sequelize");
-import { Model, Sequelize } from "sequelize";
+import { Model } from "sequelize";
 export default (sequelize, DataTypes) => {
   class Doctor extends Model {
     /**

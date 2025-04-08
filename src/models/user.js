@@ -2,14 +2,14 @@
 // const {
 //   Model
 // } = require('sequelize');
-import { Model } from "sequelize";
+import { Model, DataTypes } from "sequelize";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import BadRequestError from "../errors/bad_request.js";
 import { configDotenv } from "dotenv";
 
 configDotenv({ path: "../.env" });
-export default (sequelize, DataTypes) => {
+export default (sequelize) => {
   class User extends Model {
     /**
      * Helper method for defining associations.

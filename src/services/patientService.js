@@ -1,4 +1,4 @@
-import initDB from "../models/index.js";
+import db from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import cloudinary from "../config/cloudinary.js";
@@ -7,16 +7,17 @@ import { configDotenv } from "dotenv";
 
 configDotenv({ path: "../.env" });
 
-const db = await initDB();
+// const db = await initDB();
 const Patient = db.Patient;
 const User = db.User;
 const Appointment = db.Appointment;
-const MedicalRecord = db.MedicalRecord;
+// const MedicalRecord = db.MedicalRecord;
 const Payment = db.Payment;
 
 export const registerPatient = async (username, password, email) => {
   const transaction = await Sequelize.transaction();
   try {
+    console.log(username, password, email);
     const existingUser = await User.findOne({ where: { email }, transaction });
     if (existingUser) {
       throw new BadRequestError("Email is already registered");
@@ -28,10 +29,7 @@ export const registerPatient = async (username, password, email) => {
     const user_id = newUser.user_id;
     const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
     const otp_expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
-    const newPatient = await Patient.create(
-      { user_id, otp_code, otp_expiry },
-      { transaction }
-    );
+    await Patient.create({ user_id, otp_code, otp_expiry }, { transaction });
     const link = `${process.env.URL}/patient/verify?email=${email}&otp_code=${otp_code}`;
     await sendVerifyLink(email, otp_code, link);
     await transaction.commit();

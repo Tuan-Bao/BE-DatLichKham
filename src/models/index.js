@@ -42,6 +42,7 @@
 
 // module.exports = db;
 
+/*
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
@@ -134,3 +135,46 @@ const initDB = async () => {
 };
 
 export default initDB;
+*/
+
+import { Sequelize } from "sequelize";
+import dbConfig from "../config/config.js";
+import User from "./user.js";
+import Patient from "./patient.js";
+import Admin from "./admin.js";
+import Specialization from "./specialization.js";
+import Doctor from "./doctor.js";
+import Schedule from "./schedule.js";
+import Appointment from "./appointment.js";
+import Feedback from "./feedback.js";
+import Prescription from "./prescription.js";
+import Payment from "./payment.js";
+import MedicalRecord from "./medicalRecord.js";
+
+const sequelize = new Sequelize(dbConfig.development);
+
+const db = {
+  sequelize,
+  Sequelize,
+  User: User(sequelize, Sequelize.DataTypes),
+  Patient: Patient(sequelize, Sequelize.DataTypes),
+  Admin: Admin(sequelize, Sequelize.DataTypes),
+  Specialization: Specialization(sequelize, Sequelize.DataTypes),
+  Doctor: Doctor(sequelize, Sequelize.DataTypes),
+  Schedule: Schedule(sequelize, Sequelize.DataTypes),
+  Appointment: Appointment(sequelize, Sequelize.DataTypes),
+  Feedback: Feedback(sequelize, Sequelize.DataTypes),
+  Prescription: Prescription(sequelize, Sequelize.DataTypes),
+  Payment: Payment(sequelize, Sequelize.DataTypes),
+  MedicalRecord: MedicalRecord(sequelize, Sequelize.DataTypes),
+};
+
+Object.keys(db).forEach((modelName) => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
+
+console.log("Models loaded:", Object.keys(db));
+
+export default db;

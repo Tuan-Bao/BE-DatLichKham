@@ -1,7 +1,7 @@
 "use strict";
 // const { Model } = require("sequelize");
-import { Model } from "sequelize";
-export default (sequelize, DataTypes) => {
+import { Model, DataTypes } from "sequelize";
+export default (sequelize) => {
   class Schedule extends Model {
     /**
      * Helper method for defining associations.

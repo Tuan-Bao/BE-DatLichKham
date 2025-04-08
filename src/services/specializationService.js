@@ -1,9 +1,9 @@
-import initDB from "../models/index.js";
+import db from "../models/index.js";
 import cloudinary from "../config/cloudinary.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 
-const db = await initDB();
+// const db = await initDB();
 const Specialization = db.Specialization;
 
 export const getAllSpecializations = async () => {
