@@ -48,21 +48,21 @@ appointmentRouter.post(
 );
 
 appointmentRouter.get(
-  "/all_appointments",
+  "/all",
   authentication,
   authorized(["admin"]),
   appointmentController.getAllAppointments
 );
 
 appointmentRouter.get(
-  "/paid_appointments",
+  "/paid",
   authentication,
   authorized(["admin"]),
   appointmentController.getPaidAppointments
 );
 
 appointmentRouter.get(
-  "/appointment_details/:appointment_id",
+  "/details/:appointment_id",
   authentication,
   authorized(["patient", "doctor", "admin"]),
   appointmentController.getAppointmentsDetails
