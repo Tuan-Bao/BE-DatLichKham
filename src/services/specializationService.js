@@ -1,9 +1,9 @@
-import db from "../models/index.js";
+import initDB from "../models/index.js";
 import cloudinary from "../config/cloudinary.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 
-// const db = await initDB();
+const db = await initDB();
 const Specialization = db.Specialization;
 
 export const getAllSpecializations = async () => {
@@ -32,7 +32,7 @@ export const getAllSpecializations = async () => {
 //   }
 // };
 
-export const createSpecialization = async (name, imageFile) => {
+export const createSpecialization = async (name, fees, imageFile) => {
   const transaction = await db.sequelize.transaction();
   try {
     const existingSpecialization = await Specialization.findOne({
@@ -43,16 +43,25 @@ export const createSpecialization = async (name, imageFile) => {
       throw new BadRequestError("Specialization already exists");
     }
 
-    const uploadResult = await cloudinary.uploader.upload(imageFile, {
-      folder: "specializations",
-      use_filename: true,
-      unique_filename: false,
-    });
+    let imageUrl = null;
+    if (imageFile) {
+      const uploadResult = await cloudinary.uploader.upload(imageFile, {
+        folder: "specializations",
+        use_filename: true,
+        unique_filename: false,
+      });
 
-    const imageUrl = uploadResult.secure_url;
+      imageUrl = uploadResult.secure_url;
+    }
 
-    const newSpecialization = await Specialization.create(
-      { name, image: imageUrl },
+    await Specialization.create(
+      {
+        name,
+        fees,
+        image:
+          imageUrl ||
+          "https://cdn1.youmed.vn/tin-tuc/wp-content/uploads/2023/05/yhocduphong.png",
+      },
       { transaction }
     );
 
@@ -76,7 +85,7 @@ export const updateSpecialization = async (specialization_id, updateData) => {
 
     const data = {};
 
-    if (updateData.name && updateData.name !== specialization.name) {
+    if (updateData.name) {
       const existingSpecialization = await Specialization.findOne({
         where: { name: updateData.name },
         transaction,
@@ -87,6 +96,10 @@ export const updateSpecialization = async (specialization_id, updateData) => {
       }
 
       data.name = updateData.name;
+    }
+
+    if (updateData.fees) {
+      data.fees = updateData.fees;
     }
 
     if (updateData.image) {
@@ -122,7 +135,7 @@ export const deleteSpecialization = async (specialization_id) => {
     }
 
     await specialization.destroy({ transaction });
-
+    await transaction.commit();
     return { message: "Success" };
   } catch (error) {
     await transaction.rollback();

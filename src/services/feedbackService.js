@@ -1,8 +1,8 @@
-import db from "../models/index.js";
+import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 
-// const db = await initDB();
+const db = await initDB();
 const Feedback = db.Feedback;
 const Appointment = db.Appointment;
 

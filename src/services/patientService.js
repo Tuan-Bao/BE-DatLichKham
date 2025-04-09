@@ -1,23 +1,26 @@
-import db from "../models/index.js";
+import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import cloudinary from "../config/cloudinary.js";
 import { sendVerifyLink } from "../utils/gmail.js";
 import { configDotenv } from "dotenv";
+import { Op } from "sequelize";
 
 configDotenv({ path: "../.env" });
 
-// const db = await initDB();
+const db = await initDB();
 const Patient = db.Patient;
 const User = db.User;
+const Doctor = db.Doctor;
+const Specialization = db.Specialization;
+const Schedule = db.Schedule;
 const Appointment = db.Appointment;
 // const MedicalRecord = db.MedicalRecord;
 const Payment = db.Payment;
 
 export const registerPatient = async (username, password, email) => {
-  const transaction = await Sequelize.transaction();
+  const transaction = await db.sequelize.transaction();
   try {
-    console.log(username, password, email);
     const existingUser = await User.findOne({ where: { email }, transaction });
     if (existingUser) {
       throw new BadRequestError("Email is already registered");
@@ -31,7 +34,7 @@ export const registerPatient = async (username, password, email) => {
     const otp_expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
     await Patient.create({ user_id, otp_code, otp_expiry }, { transaction });
     const link = `${process.env.URL}/patient/verify?email=${email}&otp_code=${otp_code}`;
-    await sendVerifyLink(email, otp_code, link);
+    await sendVerifyLink(email, link);
     await transaction.commit();
     return { message: "Success" };
   } catch (error) {
@@ -104,7 +107,7 @@ export const loginPatient = async (email, password) => {
 };
 
 export const changePassword = async (user_id, oldPassword, newPassword) => {
-  const transaction = await Sequelize.transaction();
+  const transaction = await db.sequelize.transaction();
   try {
     const user = await User.findByPk(user_id, {
       include: [{ model: Patient, as: "patient" }],
@@ -115,6 +118,24 @@ export const changePassword = async (user_id, oldPassword, newPassword) => {
     }
     const { patient } = user;
     if (!patient) throw new NotFoundError("Patient not found");
+
+    if (!patient.is_verified) {
+      const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp_expiry = new Date(Date.now() + 5 * 60 * 1000);
+
+      patient.otp_code = otp_code;
+      patient.otp_expiry = otp_expiry;
+
+      await patient.save({ transaction });
+
+      const link = `${process.env.URL}/patient/verify?email=${user.email}&otp_code=${otp_code}`;
+      await sendVerifyLink(user.email, link); // Gửi email xác thực mới
+
+      await transaction.commit();
+      return {
+        message: "Email not verified. Verification link has been resent.",
+      };
+    }
 
     const isMatch = await user.comparePassword(oldPassword);
     if (!isMatch) {
@@ -173,46 +194,6 @@ export const getPatientProfile = async (user_id) => {
     }
 
     return { message: "Success", user };
-  } catch (error) {
-    throw new Error(error.message);
-  }
-};
-
-export const getPatientAppointmentsByDoctor = async (user_id) => {
-  try {
-    const user = await User.findByPk(user_id, {
-      attributes: { exclude: ["password"] },
-      include: [{ model: Patient, as: "patient" }],
-    });
-
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-
-    const { patient } = user;
-    if (!patient) {
-      throw new NotFoundError("Patient not found");
-    }
-
-    const appointments = await Appointment.findAll({
-      where: {
-        patient_id: patient.patient_id,
-        status: "completed",
-      },
-      include: [
-        {
-          model: Doctor,
-          as: "doctor",
-          include: [
-            { model: User, as: "user", attributes: { exclude: ["password"] } },
-            { model: Specialization, as: "specialization" },
-          ],
-        },
-      ],
-      order: [["appointment_date", "DESC"]],
-    });
-
-    return { message: "Success", user, appointments };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -305,13 +286,6 @@ export const getPatientAppointments = async (user_id) => {
             { model: Specialization, as: "specialization" },
           ],
         },
-        {
-          model: Patient,
-          as: "patient",
-          include: [
-            { model: User, as: "user", attributes: { exclude: ["password"] } },
-          ],
-        },
       ],
       order: [["appointment_datetime", "DESC"]], // Lịch hẹn được sắp xếp theo thời gian mới nhất đến cũ nhất
     });
@@ -368,7 +342,80 @@ export const getPatientPayments = async (user_id) => {
 
     return {
       message: "Success",
+      user,
       appointments, // chứa cả payment
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
+export const getDoctorProfileByPatient = async (user_id) => {
+  try {
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            { model: Specialization, as: "specialization" },
+            { model: Schedule, as: "schedule" },
+          ],
+        },
+      ],
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { doctor } = user;
+    if (!doctor) {
+      throw new NotFoundError("Doctor not found");
+    }
+
+    return {
+      message: "Success",
+      user,
+    };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
+export const getDoctorAppointmentsByPatient = async (user_id) => {
+  try {
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
+      include: [{ model: Doctor, as: "doctor" }],
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { doctor } = user;
+    if (!doctor) {
+      throw new NotFoundError("Doctor not found");
+    }
+
+    const doctor_id = doctor.doctor_id;
+
+    const appointments = await Appointment.findAll({
+      where: {
+        doctor_id,
+        status: {
+          [Op.ne]: "cancelled",
+        },
+      },
+      order: [["appointment_datetime", "DESC"]],
+    });
+
+    return {
+      message: "Success",
+      user,
+      appointments,
     };
   } catch (error) {
     throw new Error(error.message);

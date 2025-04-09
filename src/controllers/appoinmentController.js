@@ -1,7 +1,6 @@
 import * as appointmentService from "../services/appointmentService.js";
 import { StatusCodes } from "http-status-codes";
 import BadRequestError from "../errors/bad_request.js";
-import NotFoundError from "../errors/not_found.js";
 
 export const bookAppointment = async (req, res, next) => {
   try {

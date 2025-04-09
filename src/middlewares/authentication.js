@@ -2,11 +2,11 @@ import jwt from "jsonwebtoken";
 import { configDotenv } from "dotenv";
 import UnauthorizedError from "../errors/unauthorized.js";
 
-configDotenv({ path: "../.env" });
+configDotenv({ path: "src/.env" });
 
 const authentication = async (req, res, next) => {
   try {
-    const authHeader = req.header.authorization;
+    const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw new UnauthorizedError("Authentication Invalid");
     }
@@ -15,7 +15,6 @@ const authentication = async (req, res, next) => {
     req.user = {
       user_id: decoded.user_id,
       username: decoded.username,
-      email: decoded.email,
     };
     next();
   } catch (error) {

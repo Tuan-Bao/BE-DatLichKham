@@ -45,6 +45,16 @@ export const getDoctorAppointments = async (req, res, next) => {
   }
 };
 
+export const getPatientAppointmentsByDoctor = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await doctorService.getPatientAppointmentsByDoctor(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const addDoctor = async (req, res, next) => {
   try {
     const {
@@ -69,7 +79,7 @@ export const addDoctor = async (req, res, next) => {
       throw new BadRequestError("Missing required fields");
     }
 
-    const avatar = null;
+    let avatar = null;
     if (req.file) {
       const imageBuffer = req.file.buffer.toString("base64");
       avatar = `data:image/png;base64,${imageBuffer}`;

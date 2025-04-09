@@ -14,22 +14,29 @@ doctorRouter.post("/login", doctorController.loginDoctor);
 doctorRouter.get(
   "/all",
   authentication,
-  authorized(["admin"]),
+  authorized(["patient", "admin"]),
   doctorController.getAllDoctors
 );
 
 doctorRouter.get(
   "/profile",
   authentication,
-  authorized(["patient", "doctor", "admin"]),
+  authorized(["doctor"]),
   doctorController.getDoctorProfile
 );
 
 doctorRouter.get(
   "/appointments",
   authentication,
-  authorized(["patient", "doctor", "admin"]),
+  authorized(["doctor"]),
   doctorController.getDoctorAppointments
+);
+
+doctorRouter.get(
+  "/patient_appointments/:user_id",
+  authentication,
+  authorized(["doctor"]),
+  doctorController.getPatientAppointmentsByDoctor
 );
 
 doctorRouter.post(

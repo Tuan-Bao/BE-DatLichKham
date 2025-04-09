@@ -27,3 +27,33 @@ export const loginAdmin = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getPatientAppointmentsByAdmin = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await adminService.getPatientAppointmentsByAdmin(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDoctorProfileByAdmin = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await adminService.getDoctorProfileByAdmin(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDoctorAppointmentsByAdmin = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await adminService.getDoctorAppointmentsByAdmin(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};

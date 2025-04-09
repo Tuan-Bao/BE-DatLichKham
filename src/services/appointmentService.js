@@ -1,13 +1,13 @@
-import db from "../models/index.js";
+import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import { Op } from "sequelize";
 
-// const db = await initDB();
+const db = await initDB();
 const Appointment = db.Appointment;
 const User = db.User;
 const Doctor = db.Doctor;
-const Speacialization = db.Specialization;
+const Specialization = db.Specialization;
 const Schedule = db.Schedule;
 const Patient = db.Patient;
 const Feedback = db.Feedback;
@@ -40,7 +40,7 @@ export const bookAppointment = async (
     const doctor = await Doctor.findByPk(doctor_id, {
       include: [
         {
-          model: Speacialization,
+          model: Specialization,
           as: "specialization",
         },
         {
@@ -55,9 +55,21 @@ export const bookAppointment = async (
       throw new NotFoundError("Doctor not found");
     }
 
-    const appointmentTime = new Date(appointment_datetime);
+    let compareTime = new Date(appointment_datetime);
+    let now = new Date();
+    let minimumAllowedTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const minimumTimestamp = minimumAllowedTime.getTime();
+    const compareTimestamp = compareTime.getTime();
+
+    if (compareTimestamp <= minimumTimestamp) {
+      throw new BadRequestError(
+        "Appointments must be booked at least 2 hours in advance."
+      );
+    }
+
+    const appointmentTime = new Date(`${appointment_datetime}.000Z`);
     const dayOfWeek = appointmentTime
-      .toLocaleDateString("en-US", { weekday: "long" })
+      .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
       .toLowerCase(); // e.g. 'monday'
     console.log(appointmentTime, dayOfWeek);
     const schedule = doctor.schedule;
@@ -102,7 +114,7 @@ export const bookAppointment = async (
         patient_id: patient.patient_id,
         doctor_id,
         appointment_datetime,
-        fees: doctor.speacialization.fees,
+        fees: doctor.specialization.fees,
       },
       { transaction }
     );
@@ -126,7 +138,18 @@ export const acceptAppointment = async (appointment_id) => {
       throw new NotFoundError("Appointment not found");
     }
 
-    appointment.status = "accepted";
+    let appointmentTime = new Date(appointment.appointment_datetime);
+    let now = new Date();
+
+    const nowTimestamp = now.getTime();
+    const appointmentTimestamp = appointmentTime.getTime();
+
+    if (nowTimestamp < appointmentTimestamp) {
+      appointment.status = "accepted";
+    } else {
+      throw new BadRequestError("Appointment time has passed.");
+    }
+
     await appointment.save({ transaction });
 
     await transaction.commit();
@@ -154,12 +177,15 @@ export const cancelAppointmentByPatient = async (appointment_id) => {
     oneDayBefore.setDate(oneDayBefore.getDate() - 1);
     console.log(now, appointmentDate, oneDayBefore);
 
+    const nowTimestamp = now.getTime();
+    const oneDayBeforeTimestamp = oneDayBefore.getTime();
+
     if (appointment.status === "waiting_for_confirmation") {
       // Bệnh nhân hủy khi chưa được bác sĩ xác nhận
       appointment.status = "cancelled";
     } else if (appointment.status === "accepted") {
       // Bệnh nhân chỉ được hủy nếu còn trước 1 ngày
-      if (now > oneDayBefore) {
+      if (nowTimestamp > oneDayBeforeTimestamp) {
         throw new BadRequestError(
           "You can only cancel accepted appointments at least 1 day in advance."
         );
@@ -195,12 +221,15 @@ export const cancelAppointmentByDoctor = async (appointment_id) => {
     oneDayBefore.setDate(oneDayBefore.getDate() - 1);
     console.log(now, appointmentDate, oneDayBefore);
 
+    const nowTimestamp = now.getTime();
+    const oneDayBeforeTimestamp = oneDayBefore.getTime();
+
     if (appointment.status === "waiting_for_confirmation") {
       // Bác sĩ hủy khi chưa xác nhận
       appointment.status = "cancelled";
     } else if (appointment.status === "accepted") {
       // Bác sĩ chỉ được hủy nếu còn trước 1 ngày
-      if (now > oneDayBefore) {
+      if (nowTimestamp > oneDayBeforeTimestamp) {
         throw new BadRequestError(
           "You cannot cancel this appointment less than 1 day in advance."
         );
@@ -234,7 +263,11 @@ export const completeAppointment = async (appointment_id) => {
       throw new BadRequestError("Appointment is already completed");
     }
 
-    appointment.status = "completed";
+    if (appointment.status === "accepted") {
+      appointment.status = "completed";
+    } else {
+      throw new BadRequestError("You cannot complete this appointment.");
+    }
     await appointment.save({ transaction });
 
     const existingPayment = await Payment.findOne({
@@ -271,7 +304,15 @@ export const markPatientNotComing = async (appointment_id) => {
       throw new NotFoundError("Appointment not found");
     }
 
-    appointment.status = "patient_not_coming";
+    if (appointment.status === "patient_not_coming") {
+      throw new BadRequestError("Patient is already marked as not coming");
+    }
+
+    if (appointment.status === "accepted") {
+      appointment.status = "patient_not_coming";
+    } else {
+      throw new BadRequestError("You cannot mark patient as not coming.");
+    }
     await appointment.save({ transaction });
 
     await transaction.commit();

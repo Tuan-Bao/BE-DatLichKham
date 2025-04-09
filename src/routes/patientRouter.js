@@ -47,15 +47,22 @@ patientRouter.patch(
 patientRouter.get(
   "/appointments",
   authentication,
-  authorized(["patient", "admin"]),
+  authorized(["patient"]),
   patientController.getPatientAppointments
 );
 
 patientRouter.get(
-  "/appointments_complete",
+  "/doctor_profile/:user_id",
   authentication,
-  authorized(["doctor"]),
-  patientController.getPatientAppointmentsByDoctor
+  authorized(["patient"]),
+  patientController.getDoctorProfileByPatient
+);
+
+patientRouter.get(
+  "/doctor_appointments/:user_id",
+  authentication,
+  authorized(["patient"]),
+  patientController.getDoctorAppointmentsByPatient
 );
 
 export default patientRouter;

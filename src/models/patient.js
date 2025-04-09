@@ -2,8 +2,8 @@
 // const {
 //   Model
 // } = require('sequelize');
-import { Model, DataTypes } from "sequelize";
-export default (sequelize) => {
+import { Model } from "sequelize";
+export default (sequelize, DataTypes) => {
   class Patient extends Model {
     /**
      * Helper method for defining associations.

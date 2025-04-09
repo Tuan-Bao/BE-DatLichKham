@@ -13,22 +13,22 @@ export const getAllSpecializations = async (req, res, next) => {
 
 export const createSpecialization = async (req, res, next) => {
   try {
-    const { name } = req.body;
+    const { name, fees } = req.body;
 
-    if (!name) {
-      throw new BadRequestError("Specialization name is required.");
+    if (!name || !fees) {
+      throw new BadRequestError("Missing required fields");
     }
 
-    if (!req.file) {
-      throw new BadRequestError("Image is required.");
+    let imageFile = null;
+    if (req.file) {
+      // Chuyển file buffer thành base64 để Cloudinary xử lý
+      const imageBuffer = req.file.buffer.toString("base64");
+      imageFile = `data:image/png;base64,${imageBuffer}`;
     }
-
-    // Chuyển file buffer thành base64 để Cloudinary xử lý
-    const imageBuffer = req.file.buffer.toString("base64");
-    const imageFile = `data:image/png;base64,${imageBuffer}`;
 
     const result = await specializationService.createSpecialization(
       name,
+      fees,
       imageFile
     );
 
@@ -41,9 +41,9 @@ export const createSpecialization = async (req, res, next) => {
 export const updateSpecialization = async (req, res, next) => {
   try {
     const { specialization_id } = req.params;
-    const { name } = req.body;
+    const { name, fees } = req.body;
 
-    if (!name && !req.file) {
+    if (!name && !fees && !req.file) {
       throw new BadRequestError(
         "At least one field (name or image) must be provided."
       );
@@ -53,6 +53,10 @@ export const updateSpecialization = async (req, res, next) => {
 
     if (name) {
       updateData.name = name;
+    }
+
+    if (fees) {
+      updateData.fees = fees;
     }
 
     if (req.file) {

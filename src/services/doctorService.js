@@ -1,11 +1,12 @@
-import db from "../models/index.js";
+import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import cloudinary from "../config/cloudinary.js";
 
-// const db = await initDB();
+const db = await initDB();
 const Doctor = db.Doctor;
 const User = db.User;
+const Patient = db.Patient;
 const Specialization = db.Specialization;
 const Schedule = db.Schedule;
 const Appointment = db.Appointment;
@@ -158,6 +159,46 @@ export const getDoctorAppointments = async (user_id) => {
   }
 };
 
+export const getPatientAppointmentsByDoctor = async (user_id) => {
+  try {
+    const user = await User.findByPk(user_id, {
+      attributes: { exclude: ["password"] },
+      include: [{ model: Patient, as: "patient" }],
+    });
+
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    const { patient } = user;
+    if (!patient) {
+      throw new NotFoundError("Patient not found");
+    }
+
+    const appointments = await Appointment.findAll({
+      where: {
+        patient_id: patient.patient_id,
+        status: "completed",
+      },
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            { model: User, as: "user", attributes: { exclude: ["password"] } },
+            { model: Specialization, as: "specialization" },
+          ],
+        },
+      ],
+      order: [["appointment_date", "DESC"]],
+    });
+
+    return { message: "Success", user, appointments };
+  } catch (error) {
+    throw new Error(error.message);
+  }
+};
+
 export const addDoctor = async (doctorData) => {
   const transaction = await db.sequelize.transaction();
   try {
@@ -193,7 +234,9 @@ export const addDoctor = async (doctorData) => {
         username,
         email,
         password,
-        avatar: avatarUrl,
+        avatar:
+          avatarUrl ||
+          "https://static.vecteezy.com/system/resources/previews/020/911/740/non_2x/user-profile-icon-profile-avatar-user-icon-male-icon-face-icon-profile-icon-free-png.png",
         role: "doctor",
       },
       { transaction }
@@ -222,7 +265,7 @@ export const addDoctor = async (doctorData) => {
     );
 
     await transaction.commit();
-    return { message: "Success", doctor: newDoctor };
+    return { message: "Success" };
   } catch (error) {
     await transaction.rollback();
     throw new Error(error.message);

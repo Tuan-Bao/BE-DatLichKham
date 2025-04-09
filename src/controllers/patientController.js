@@ -47,6 +47,17 @@ export const changePassword = async (req, res, next) => {
   try {
     const { user_id } = req.user;
     const { old_password, new_password } = req.body;
+
+    if (!old_password || !new_password) {
+      throw new BadRequestError("Missing required fields");
+    }
+
+    if (old_password === new_password) {
+      throw new BadRequestError(
+        "New password must be different from old password."
+      );
+    }
+
     const result = await patientService.changePassword(
       user_id,
       old_password,
@@ -71,16 +82,6 @@ export const getPatientProfile = async (req, res, next) => {
   try {
     const { user_id } = req.user;
     const result = await patientService.getPatientProfile(user_id);
-    return res.status(StatusCodes.OK).json(result);
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const getPatientAppointmentsByDoctor = async (req, res, next) => {
-  try {
-    const { user_id } = req.body;
-    const result = await patientService.getPatientAppointmentsByDoctor(user_id);
     return res.status(StatusCodes.OK).json(result);
   } catch (error) {
     next(error);
@@ -127,6 +128,26 @@ export const getPatientPayments = async (req, res, next) => {
   try {
     const { user_id } = req.user;
     const result = await patientService.getPatientPayments(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDoctorProfileByPatient = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await patientService.getDoctorProfileByPatient(user_id);
+    return res.status(StatusCodes.OK).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDoctorAppointmentsByPatient = async (req, res, next) => {
+  try {
+    const { user_id } = req.params;
+    const result = await patientService.getDoctorAppointmentsByPatient(user_id);
     return res.status(StatusCodes.OK).json(result);
   } catch (error) {
     next(error);

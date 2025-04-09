@@ -42,16 +42,15 @@
 
 // module.exports = db;
 
-/*
 import fs from "fs";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import { Sequelize } from "sequelize";
-import process from "process";
+// import process from "process";
 import configFile from "../config/config.js";
 import { configDotenv } from "dotenv";
 
-configDotenv({ path: "../.env" });
+configDotenv({ path: "src/.env" });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -135,8 +134,8 @@ const initDB = async () => {
 };
 
 export default initDB;
-*/
 
+/*
 import { Sequelize } from "sequelize";
 import dbConfig from "../config/config.js";
 import User from "./user.js";
@@ -178,3 +177,4 @@ Object.keys(db).forEach((modelName) => {
 console.log("Models loaded:", Object.keys(db));
 
 export default db;
+*/

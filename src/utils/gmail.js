@@ -20,7 +20,7 @@ export const sendOTP = async (email, otp_code, link) => {
   }
 };
 
-export const sendVerifyLink = async (email, otp_code, link) => {
+export const sendVerifyLink = async (email, link) => {
   const transport = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
@@ -38,7 +38,7 @@ export const sendVerifyLink = async (email, otp_code, link) => {
       subject: "Verification OTP",
       html: `
             <p>Hello</p>
-            <p>Your OTP is <strong>${otp_code}</strong>. OTP Code is valid for 5 minutes.</p>.
+            <p>Verify link is valid for 5 minutes.</p>.
             <p>Click <a href="${link}">here</a> to verify your account.</p>
         `,
     };
