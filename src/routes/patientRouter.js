@@ -52,6 +52,13 @@ patientRouter.get(
 );
 
 patientRouter.get(
+  "/payments",
+  authentication,
+  authorized(["patient"]),
+  patientController.getPatientPayments
+);
+
+patientRouter.get(
   "/doctor_profile/:user_id",
   authentication,
   authorized(["patient"]),

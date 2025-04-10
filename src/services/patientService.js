@@ -5,6 +5,7 @@ import cloudinary from "../config/cloudinary.js";
 import { sendVerifyLink } from "../utils/gmail.js";
 import { configDotenv } from "dotenv";
 import { Op } from "sequelize";
+import { formatToVNTime } from "../helper/formatToVNTime.js";
 
 configDotenv({ path: "../.env" });
 
@@ -218,8 +219,12 @@ export const updatePatientProfile = async (user_id, updateData) => {
     }
 
     const userFields = ["username", "email"];
+    let emailChanged = false;
     userFields.forEach((field) => {
       if (updateData[field] !== undefined) {
+        if (field === "email" && updateData.email !== user.email) {
+          emailChanged = true;
+        }
         user[field] = updateData[field];
       }
     });
@@ -248,8 +253,22 @@ export const updatePatientProfile = async (user_id, updateData) => {
       }
     });
 
+    if (emailChanged) {
+      const otp_code = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp_expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+
+      patient.is_verified = false;
+      patient.otp_code = otp_code;
+      patient.otp_expiry = otp_expiry;
+    }
+
     await user.save({ transaction });
     await patient.save({ transaction });
+
+    if (emailChanged) {
+      const link = `${process.env.URL}/patient/verify?email=${updateData.email}&otp_code=${patient.otp_code}`;
+      await sendVerifyLink(updateData.email, link); // Gửi email xác thực mới
+    }
 
     await transaction.commit();
     return { message: "Success" };
@@ -290,10 +309,15 @@ export const getPatientAppointments = async (user_id) => {
       order: [["appointment_datetime", "DESC"]], // Lịch hẹn được sắp xếp theo thời gian mới nhất đến cũ nhất
     });
 
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
     return {
       message: "Success",
       user,
-      appointments,
+      appointments: formattedAppointments,
     };
   } catch (error) {
     throw new Error(error.message);
@@ -340,10 +364,15 @@ export const getPatientPayments = async (user_id) => {
       order: [["appointment_datetime", "DESC"]],
     });
 
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
     return {
       message: "Success",
       user,
-      appointments, // chứa cả payment
+      appointments: formattedAppointments, // chứa cả payment
     };
   } catch (error) {
     throw new Error(error.message);
@@ -412,10 +441,15 @@ export const getDoctorAppointmentsByPatient = async (user_id) => {
       order: [["appointment_datetime", "DESC"]],
     });
 
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
     return {
       message: "Success",
       user,
-      appointments,
+      appointments: formattedAppointments,
     };
   } catch (error) {
     throw new Error(error.message);

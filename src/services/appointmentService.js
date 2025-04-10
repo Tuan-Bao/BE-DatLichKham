@@ -1,6 +1,7 @@
 import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
+import { formatToVNTime } from "../helper/formatToVNTime.js";
 import { Op } from "sequelize";
 
 const db = await initDB();
@@ -67,22 +68,28 @@ export const bookAppointment = async (
       );
     }
 
-    const appointmentTime = new Date(`${appointment_datetime}.000Z`);
-    const dayOfWeek = appointmentTime
+    const appointmentVNTime = new Date(`${appointment_datetime}.000Z`);
+    const dayOfWeek = appointmentVNTime
       .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
       .toLowerCase(); // e.g. 'monday'
-    console.log(appointmentTime, dayOfWeek);
+    // console.log(appointmentVNTime, dayOfWeek);
     const schedule = doctor.schedule;
     if (schedule[dayOfWeek] === false) {
       throw new BadRequestError(`Doctor is not available on ${dayOfWeek}`);
     }
 
+    const appointmentTime = new Date(appointment_datetime);
     const doctorConflict = await Appointment.findOne({
       where: {
         doctor_id,
         appointment_datetime: appointmentTime,
         status: {
-          [Op.in]: ["waiting_for_confirmation", "accepted"],
+          [Op.in]: [
+            "waiting_for_confirmation",
+            "accepted",
+            "completed",
+            "mark_patient_not_coming",
+          ],
         },
       },
       transaction,
@@ -99,7 +106,12 @@ export const bookAppointment = async (
         patient_id: patient.patient_id,
         appointment_datetime: appointmentTime,
         status: {
-          [Op.in]: ["waiting_for_confirmation", "accepted"],
+          [Op.in]: [
+            "waiting_for_confirmation",
+            "accepted",
+            "completed",
+            "mark_patient_not_coming",
+          ],
         },
       },
       transaction,
@@ -139,15 +151,18 @@ export const acceptAppointment = async (appointment_id) => {
     }
 
     let appointmentTime = new Date(appointment.appointment_datetime);
+    const oneHourBefore = new Date(appointmentTime.getTime() - 60 * 60 * 1000);
     let now = new Date();
 
     const nowTimestamp = now.getTime();
-    const appointmentTimestamp = appointmentTime.getTime();
+    const acceptLimitTimestamp = oneHourBefore.getTime();
 
-    if (nowTimestamp < appointmentTimestamp) {
+    if (nowTimestamp < acceptLimitTimestamp) {
       appointment.status = "accepted";
     } else {
-      throw new BadRequestError("Appointment time has passed.");
+      throw new BadRequestError(
+        "You can only accept appointments at least 1 hour in advance."
+      );
     }
 
     await appointment.save({ transaction });
@@ -175,7 +190,6 @@ export const cancelAppointmentByPatient = async (appointment_id) => {
     const appointmentDate = new Date(appointment.appointment_datetime);
     const oneDayBefore = new Date(appointmentDate);
     oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-    console.log(now, appointmentDate, oneDayBefore);
 
     const nowTimestamp = now.getTime();
     const oneDayBeforeTimestamp = oneDayBefore.getTime();
@@ -219,7 +233,6 @@ export const cancelAppointmentByDoctor = async (appointment_id) => {
     const appointmentDate = new Date(appointment.appointment_datetime);
     const oneDayBefore = new Date(appointmentDate);
     oneDayBefore.setDate(oneDayBefore.getDate() - 1);
-    console.log(now, appointmentDate, oneDayBefore);
 
     const nowTimestamp = now.getTime();
     const oneDayBeforeTimestamp = oneDayBefore.getTime();
@@ -261,6 +274,17 @@ export const completeAppointment = async (appointment_id) => {
 
     if (appointment.status === "completed") {
       throw new BadRequestError("Appointment is already completed");
+    }
+
+    const now = new Date();
+    const appointmentDate = new Date(appointment.appointment_datetime);
+    const nowTimestamp = now.getTime();
+    const appointmentTimestamp = appointmentDate.getTime();
+
+    if (nowTimestamp <= appointmentTimestamp) {
+      throw new BadRequestError(
+        "Appointment cannot be completed before the scheduled time."
+      );
     }
 
     if (appointment.status === "accepted") {
@@ -308,6 +332,17 @@ export const markPatientNotComing = async (appointment_id) => {
       throw new BadRequestError("Patient is already marked as not coming");
     }
 
+    const now = new Date();
+    const appointmentDate = new Date(appointment.appointment_datetime);
+    const nowTimestamp = now.getTime();
+    const appointmentTimestamp = appointmentDate.getTime();
+
+    if (nowTimestamp <= appointmentTimestamp) {
+      throw new BadRequestError(
+        "Appointment cannot be marked patient not coming before the scheduled time."
+      );
+    }
+
     if (appointment.status === "accepted") {
       appointment.status = "patient_not_coming";
     } else {
@@ -343,11 +378,17 @@ export const getAllAppointments = async () => {
           ],
         },
       ],
+      order: [["appointment_datetime", "DESC"]],
     });
     if (appointments.length === 0) {
       throw new NotFoundError("No appointments found");
     }
-    return { message: "Success", appointments };
+
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+    return { message: "Success", appointments: formattedAppointments };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -391,7 +432,12 @@ export const getPaidAppointments = async () => {
     -> dùng required: true, Sequelize sẽ dùng INNER JOIN
     */
 
-    return { message: "Success", paidAppointments };
+    const formattedAppointments = paidAppointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
+    return { message: "Success", paidAppointments: formattedAppointments };
   } catch (error) {
     throw new Error(error.message);
   }
@@ -401,6 +447,21 @@ export const getAppointmentsDetails = async (appointment_id) => {
   try {
     const appointmentDetails = await Appointment.findByPk(appointment_id, {
       include: [
+        {
+          model: Patient,
+          as: "patient",
+          include: [
+            { model: User, as: "user", attributes: { exclude: ["password"] } },
+          ],
+        },
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            { model: User, as: "user", attributes: { exclude: ["password"] } },
+            { model: Specialization, as: "specialization" },
+          ],
+        },
         {
           model: Feedback,
           as: "feedback",
@@ -424,7 +485,13 @@ export const getAppointmentsDetails = async (appointment_id) => {
       throw new NotFoundError("No appointment found");
     }
 
-    return { message: "Success", appointmentDetails };
+    const result = appointmentDetails.toJSON();
+
+    result.appointment_datetime = formatToVNTime(
+      appointmentDetails.appointment_datetime
+    );
+
+    return { message: "Success", appointmentDetails: result };
   } catch (error) {
     throw new Error(error.message);
   }

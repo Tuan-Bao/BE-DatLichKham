@@ -2,6 +2,7 @@ import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
 import cloudinary from "../config/cloudinary.js";
+import { formatToVNTime } from "../helper/formatToVNTime.js";
 
 const db = await initDB();
 const Doctor = db.Doctor;
@@ -149,10 +150,15 @@ export const getDoctorAppointments = async (user_id) => {
       order: [["appointment_datetime", "DESC"]],
     });
 
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
     return {
       message: "Success",
       user,
-      appointments,
+      appointments: formattedAppointments,
     };
   } catch (error) {
     throw new Error(error.message);
@@ -190,10 +196,19 @@ export const getPatientAppointmentsByDoctor = async (user_id) => {
           ],
         },
       ],
-      order: [["appointment_date", "DESC"]],
+      order: [["appointment_datetime", "DESC"]],
     });
 
-    return { message: "Success", user, appointments };
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
+    return {
+      message: "Success",
+      user,
+      appointments: formattedAppointments,
+    };
   } catch (error) {
     throw new Error(error.message);
   }

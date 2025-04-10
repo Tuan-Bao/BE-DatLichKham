@@ -2,3 +2,4 @@ node_modules/
 src/.env
 package-lock.json
 *.test.js
+config.json

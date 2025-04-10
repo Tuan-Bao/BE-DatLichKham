@@ -1,7 +1,7 @@
 import initDB from "../models/index.js";
 import BadRequestError from "../errors/bad_request.js";
 import NotFoundError from "../errors/not_found.js";
-import { or, where } from "sequelize";
+import { formatToVNTime } from "../helper/formatToVNTime.js";
 
 const db = await initDB();
 const Admin = db.Admin;
@@ -96,10 +96,15 @@ export const getPatientAppointmentsByAdmin = async (user_id) => {
       order: [["appointment_datetime", "DESC"]],
     });
 
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
     return {
       message: "Success",
       user,
-      appointments,
+      appointments: formattedAppointments,
     };
   } catch (error) {
     throw new Error(error.message);
@@ -172,10 +177,15 @@ export const getDoctorAppointmentsByAdmin = async (user_id) => {
       order: [["appointment_datetime", "DESC"]],
     });
 
+    const formattedAppointments = appointments.map((a) => ({
+      ...a.toJSON(),
+      appointment_datetime: formatToVNTime(a.appointment_datetime),
+    }));
+
     return {
       message: "Success",
       user,
-      appointments,
+      appointments: formattedAppointments,
     };
   } catch (error) {
     throw new Error(error.message);

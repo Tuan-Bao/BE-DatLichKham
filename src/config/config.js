@@ -8,7 +8,6 @@ export default {
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
     dialect: "mysql",
-    // timezone: "+07:00",
   },
   test: {
     username: process.env.DB_USER,
